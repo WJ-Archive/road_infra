@@ -1,0 +1,15 @@
+DataSearchView
+{
+    background-color: rgb(57, 63, 70);
+    border-radius: 20px;
+}
+
+#lat_txt_lb, #lot_txt_lb
+{
+    color: rgb(210, 210, 210);
+}
+
+#search_lat_le, #search_lot_le, #data_result_tb
+{
+    background-color: rgb(210, 210, 210);
+}

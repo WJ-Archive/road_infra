@@ -1,0 +1,14 @@
+GraphView{
+    background-color: rgb(57, 63, 70);
+    border-radius: 5px;
+}
+
+GraphView #graph_lb{
+    background-color: white;
+    border-radius: 5px;
+}
+
+QComboBox
+{
+    background-color: #EEEEEE;
+}

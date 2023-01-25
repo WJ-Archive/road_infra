@@ -1,0 +1,11 @@
+GpsView
+{
+    background-color: rgb(57, 63, 70);
+    border-radius: 5px;
+}
+
+GpsView #gps_lb
+{
+    background-color: white;
+    border-radius: 5px;
+}

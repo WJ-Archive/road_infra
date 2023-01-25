@@ -1,0 +1,89 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="./cmworld-1.0/css/leaflet.css" />
+    <link rel="stylesheet" href="./cmworld-1.0/css/style.css" />
+    <script type="text/javascript" src="./cmworld-1.0/leaflet.js"></script>
+    <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+</head>
+
+<body>
+  <div id="map" style="width: 100%; height: 100%; "></div>
+  <script language="JavaScript">
+        const DEFAULT_LOC = [37.583, 126.890];
+        let drag_state = false;
+        let isDown = false;
+        let cur_loc = DEFAULT_LOC;
+        let marker = null;
+        const map = document.getElementById("map");
+
+        //지도 영역 'map' DOM Element를 mymap 변수로 정의
+        var mymap = L.map('map',{
+            zoomControl : false, // 지도 줌 컨트롤을 비활성화 시킵니다.
+            minZoom: 12, // 지도의 최소 줌 레벨을 설정합니다
+            maxZoom: 18,
+            tileSize: 1,
+        }).setView(cur_loc);
+        mymap.setZoom(16);
+
+        //Open Steet Map 서버 주소 입력
+        L.tileLayer("http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(mymap);
+
+        // marker 테스트
+        marker = L.marker(cur_loc);
+        marker.addTo(mymap);
+
+        // mv-cur을 누르면 지도가 현재위치로 오는 이벤트
+        const mvCurrent = document.getElementById("mv-cur");
+        mvCurrent.addEventListener('click', ()=>{
+            mymap.panTo(L.latLng(cur_loc));
+            drag_state = false;
+        });
+
+
+        map.addEventListener('mousedown', ()=>{
+            isDown = true;
+        });
+
+        map.addEventListener('mousemove', ()=>{
+            if (isDown == true)
+            {
+                drag_state = true;
+            }
+        });
+
+        map.addEventListener('click', ()=>{
+            isDown = false;
+        });
+
+        // 폴리곤 그리는 예
+        // let polyLine = L.polyline([],{color: 'red', weight:6}).addTo(mymap);
+
+        // pyqt와 연동 코드
+        setInterval(()=> {
+            const mapping_position = new QWebChannel(qt.webChannelTransport, function (channel) {
+            window.handler = channel.objects.handler;
+            handler.test().then((data)=> {
+                if (data == "" && cur_loc == DEFAULT_LOC){
+                    return;
+                }
+                cur_loc[0] = data[0];
+                cur_loc[1] = data[1];
+                marker.remove();
+                marker = L.marker(cur_loc);
+
+                marker.addTo(mymap);
+                if (drag_state == false){
+                    mymap.panTo(L.latLng(cur_loc));
+                }
+            });
+        });
+        mapping_position = undefined
+        delete(mapping_position);
+        }, 3000);
+
+      </script>
+</body>
+</html>

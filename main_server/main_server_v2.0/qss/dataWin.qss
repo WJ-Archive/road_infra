@@ -1,0 +1,41 @@
+InfoBtn {
+    background-color: rgb(57, 63, 70);
+    border-radius: 20px;
+}
+
+InfoBtn #on_off_lb{
+    color: rgb(241, 81, 81);
+    border-radius: 22px;
+}
+
+InfoBtn:hover:!pressed{
+    background-color : #8FE3CF;
+}
+
+InfoBtn #info_name_lb
+{
+    color: rgb(150, 150, 150);
+}
+
+InfoBtn #info_val_lb
+{
+    color: #F1F1F1;
+}
+
+InfoBtn[toggle=true]
+{
+    background-color: #003865;
+    border: 2px solid #00D7FF;
+}
+    InfoBtn[toggle=true] #info_name_lb
+    {
+        color: #EAE509;
+        font-weight: bold;
+        padding:0;
+    }
+
+    InfoBtn[toggle=true] #unit_lb
+    {
+        color: rgb(150, 150, 150);
+        padding:0;
+    }

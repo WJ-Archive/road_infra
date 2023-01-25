@@ -1,0 +1,10 @@
+TimeAndPosView #time_txt_lb, #lat_txt_lb, #long_txt_lb{
+    color: rgb(0, 174, 181);
+}
+
+TimeAndPosView #lat_val_lb, #long_val_lb, #time_val_lb{
+    background-color: rgb(34, 40, 49);
+    color: white;
+    border-radius: 5px;
+    border: 2px solid rgb(0, 174, 181);
+}

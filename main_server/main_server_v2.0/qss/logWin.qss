@@ -1,0 +1,21 @@
+LogView{
+    background-color: rgb(57, 63, 70);
+    border-radius: 5px;
+}
+
+LogView #txt_brw{
+    background-color: white;
+    border-radius: 5px;
+}
+LogView #log_status_lb{
+    background-color: yellow;
+    border-radius: 5px;
+}
+
+LogView #warn_txt, #warn_val{
+    color: blue;
+}
+
+LogView #err_txt, #err_val{
+    color: red;
+}
