@@ -1,5 +1,5 @@
 #dll (hwt_905)
-#IMU센서 코드는 c언어로 작성되있기 때문에 동적라이브러리파일로 컴파일 후 로드 (dll/hwt_code)
+#IMU센서 코드는 c언어로 작성되있기 때문에 동적라이브러리파일로 컴파일 후 로드 (dll/gyro_dll.cpp)
 from ctypes import *
 
 class IMU_Sensor: #진동 Event 발생시 활성화 되야하는것들 : GNSS, IMU1, IMU2
