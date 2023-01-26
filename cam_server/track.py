@@ -311,13 +311,11 @@ def run(
                     
                     
                     
-                    for j, (output) in enumerate(outputs[i]):
-                        
+                    for j, (output) in enumerate(outputs[i]):            
                         bbox = output[0:4]
                         id = output[4]
                         cls = output[5]
-                        conf = output[6]
-
+                        conf = output[6]   
                         
                         #add. 
                         if id not in detected_list:
@@ -325,8 +323,7 @@ def run(
                             pdata = pack_data(names[int(cls)], cls, round(conf,2), bbox, frame_idx)
                             socket_send(sock_udp, pdata)
                             detected_list.append(id)
-
-
+                            
                         if save_txt:
                             # to MOT format
                             bbox_left = output[0]
@@ -353,8 +350,6 @@ def run(
                                 save_one_box(bbox.astype(np.int16), imc, file=save_dir / 'crops' / txt_file_name / names[c] / f'{id}' / f'{p.stem}.jpg', BGR=True)
                 else:
                     detected_list.clear()
-                
-
             else:
                 pass
                 #tracker_list[i].tracker.pred_n_update_all_tracks()
@@ -408,7 +403,6 @@ def run(
 
     shm.close()
     shm.unlink()
-
 
 def parse_opt():
     parser = argparse.ArgumentParser()
@@ -511,7 +505,6 @@ def send_frame_tcp():
                 shm.unlink()
                 sys.exit()
                 ...
-
     finally:
         shm.close()
         shm.unlink()
