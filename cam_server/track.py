@@ -204,6 +204,8 @@ def run(
                 tracker_list[i].model.warmup()
     outputs = [None] * nr_sources
     
+    # add. 
+    detected_list = deque()
     # add. UDP Connect
     sock_udp = udp_connect()
         
@@ -297,6 +299,7 @@ def run(
                 
                 # draw boxes for visualization
                 if len(outputs[i]) > 0:
+                
                     if save_vid and is_seg:
                         # Mask plotting
                         annotator.masks(
@@ -307,6 +310,7 @@ def run(
                         )
                     
                     
+                    
                     for j, (output) in enumerate(outputs[i]):
                         
                         bbox = output[0:4]
@@ -314,9 +318,13 @@ def run(
                         cls = output[5]
                         conf = output[6]
 
-                        #add. Packaging Data & Socket Send
-                        pdata = pack_data(names[int(cls)], cls, round(conf,2), bbox, frame_idx)
-                        socket_send(sock_udp, pdata)
+                        
+                        #add. 
+                        if id not in detected_list:
+                            #add. Packaging Data & Socket Send 
+                            pdata = pack_data(names[int(cls)], cls, round(conf,2), bbox, frame_idx)
+                            socket_send(sock_udp, pdata)
+                            detected_list.append(id)
 
 
                         if save_txt:
@@ -343,11 +351,14 @@ def run(
                             if save_crop:
                                 txt_file_name = txt_file_name if (isinstance(path, list) and len(path) > 1) else ''
                                 save_one_box(bbox.astype(np.int16), imc, file=save_dir / 'crops' / txt_file_name / names[c] / f'{id}' / f'{p.stem}.jpg', BGR=True)
-                            
+                else:
+                    detected_list.clear()
+                
+
             else:
                 pass
                 #tracker_list[i].tracker.pred_n_update_all_tracks()
-                
+            
             # Stream results
             im0 = annotator.result()
 
@@ -378,7 +389,7 @@ def run(
                     else:  # stream
                         fps, w, h = 30, im0.shape[1], im0.shape[0]
                     save_path = str(Path(save_path).with_suffix('.mp4'))  # force *.mp4 suffix on results videos
-                    vid_writer[i] = cv2#need Numpy array to create shm.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
+                    vid_writer[i] = cv2 # need Numpy array to create shm.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
                 vid_writer[i].write(im0)
 
             prev_frames[i] = curr_frames[i]
@@ -394,9 +405,10 @@ def run(
         LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}{s}")
     if update:
         strip_optimizer(yolo_weights)  # update model (to fix SourceChangeWarning)
-    
+
     shm.close()
     shm.unlink()
+
 
 def parse_opt():
     parser = argparse.ArgumentParser()
@@ -468,33 +480,47 @@ def send_frame_tcp():
 
             except BrokenPipeError:
                 print("Broken Pipe Error...")
-                #TODO Process restart
+                shm.close()
+                shm.unlink()
                 sys.exit()
+                #TODO Process restart
                 ...
             except ConnectionResetError:
                 print("연결끊김!")
                 print("Please Restart....")
+                shm.close()
+                shm.unlink()
+                sys.exit()
                 #re Connect..
                 #sys.stdout.flush()
                 #os.execl(sys.executable, sys.executable, *sys.argv)
                 #TODO Process restart
-                sys.exit()
                 ...
             except TimeoutError:
                 print("Time out...")
                 #TODO Process restart
+                shm.close()
+                shm.unlink()
                 sys.exit()
                 ...
+            
+            except OSError:
+                print("Can't Search Mainserver")
+                #TODO Process restart
+                shm.close()
+                shm.unlink()
+                sys.exit()
+                ...
+
     finally:
         shm.close()
         shm.unlink()
         sys.exit()
-        
+
 def main(opt):
     check_requirements(requirements=ROOT / 'requirements.txt', exclude=('tensorboard', 'thop'))
     run(**vars(opt))
     
-
 if __name__ == "__main__":
     
     #semaphore
@@ -509,7 +535,7 @@ if __name__ == "__main__":
     p1.start()
     print("p1 start")
 
-    # add. Stream to Main Server(TCP) (process2)
+    # add. Stream to Main Server(TCP) (process2)sys.exit()
     p2 = Process(target=send_frame_tcp, args=())
     p2.start()
     print("p2 start")
