@@ -3,7 +3,7 @@ from model.sck_connect import udp_connect
 import socket
 
 SCK_SERVER_IP = '192.168.0.244'
-SCK_SERVER_PORT = 4040          
+SCK_SERVER_PORT = 4141          
 SCK_BUF = 2048
 
 def get_lineprofiler_data():
