@@ -394,8 +394,9 @@ def run(
         LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}{s}")
     if update:
         strip_optimizer(yolo_weights)  # update model (to fix SourceChangeWarning)
-
-
+    
+    shm.close()
+    shm.unlink()
 
 def parse_opt():
     parser = argparse.ArgumentParser()
@@ -455,32 +456,40 @@ def send_frame_tcp():
     #Call SHM
     sh_frame = shared_memory.SharedMemory(name=shm.name)
     np_sh_frame = np.ndarray((640,420,), dtype=np.int64, buffer = sh_frame.buf)
-    while(1):
-        try:   
-            #read shared_frame
-            f = np_sh_frame[:]
-            if len(f) != 0:
-                d = f.flatten()
-                s = d.tostring()
-                sock_tcp.sendall(s)
+    try:
+        while(1):
+            try:   
+                #read shared_frame
+                f = np_sh_frame[:]
+                if len(f) != 0:
+                    d = f.flatten()
+                    s = d.tostring()
+                    sock_tcp.sendall(s)
 
-        except BrokenPipeError:
-            print("Broken Pipe Error...")
-            #TODO Process restart
-            ...
-        except ConnectionResetError:
-            print("연결끊김!")
-            print("Please Restart....")
-            #re Connect..
-            #sys.stdout.flush()
-            #os.execl(sys.executable, sys.executable, *sys.argv)
-            #TODO Process restart
-            ...
-        except TimeoutError:
-            print("Time out...")
-            #TODO Process restart
-            ...
-
+            except BrokenPipeError:
+                print("Broken Pipe Error...")
+                #TODO Process restart
+                sys.exit()
+                ...
+            except ConnectionResetError:
+                print("연결끊김!")
+                print("Please Restart....")
+                #re Connect..
+                #sys.stdout.flush()
+                #os.execl(sys.executable, sys.executable, *sys.argv)
+                #TODO Process restart
+                sys.exit()
+                ...
+            except TimeoutError:
+                print("Time out...")
+                #TODO Process restart
+                sys.exit()
+                ...
+    finally:
+        shm.close()
+        shm.unlink()
+        sys.exit()
+        
 def main(opt):
     check_requirements(requirements=ROOT / 'requirements.txt', exclude=('tensorboard', 'thop'))
     run(**vars(opt))
