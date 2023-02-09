@@ -61,18 +61,6 @@ CAM_HEIGHT = 720
 
 IMG_SIZE = CAM_WIDTH
 
-# add. Create Shared Memory 
-def create_shared_block():
-    
-    #need Numpy array to create shm
-    a = np.ones(shape=(CAM_WIDTH,CAM_HEIGHT), dtype = np.int64)
-
-    shm = shared_memory.SharedMemory(create=True, size=a.nbytes)
-    np_array = np.ndarray(a.shape, dtype=np.int64, buffer=shm.buf)
-    np_array[:] = a[:] #Copy the original Data into Shared memory
-
-    return shm, np_array
-
 # add. Detect Data packaging (JSON)
 def pack_data(cls_name, cls, conf, xyxy, fc):
     #xyxy=torch.tensor(xyxy).view(1,4)
