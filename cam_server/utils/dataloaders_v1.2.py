@@ -38,12 +38,6 @@ from utils.torch_utils import torch_distributed_zero_first
 #add
 from utils.cam_stream import Stream_Vision_Cam
 import copy
-import socket
-import sys
-
-MAIN_SERVER_IP = "192.168.0.244"
-MAIN_SERVER_UDP_PORT = 3939
-MAIN_SERVER_TCP_PORT = 3838
 
 # Parameters
 HELP_URL = 'See https://github.com/ultralytics/yolov5/wiki/Train-Custom-Data'
@@ -443,18 +437,16 @@ class LoadStreams:
 
     def __len__(self):
         return len(self.sources)  # 1E12 frames = 32 streams at 30 FPS for 30 years
-    
+
 #Custom LoadStreams (for Lucid Vision Camera)
 class Custom_LoadStreams:
-    #add argument Cam_WIDTH, CAM_HEIGHT, Semaphore
-    def __init__(self, sources='file.streams', img_size=640, stride=32, auto=True, transforms=None, vid_stride=1, cam_width=640, cam_height=640, sem=None):
+    def __init__(self, sources='file.streams', img_size=640, stride=32, auto=True, transforms=None, vid_stride=1, cam_width=640, cam_height=640):
         
         torch.backends.cudnn.benchmark = True  # faster for fixed-size inference
-        # add. TCP Connect
-        self.sock_tcp = tcp_connect()
+        
         self.cam = Stream_Vision_Cam(cam_width, cam_height)
         self.cam.setup()                       # setup                     
-        self.sem = sem
+        
         self.mode = 'stream'
         self.img_size = img_size
         self.stride = stride
@@ -495,7 +487,7 @@ class Custom_LoadStreams:
     def update(self, i, stream):
 
         #inference overhead occur because inference function can't access memory that capture is too fast???
-        #--> solved it giving semaphore
+        #--> solved it by giving time.sleep(0.1) ~~
         # Read stream `i` frames in daemon thread
         n, f = 0, self.frames[i]  # frame number, frame array
         success = len(self.cam.devices)
@@ -504,14 +496,11 @@ class Custom_LoadStreams:
             #print(f"{self.cam.fc}%{n} = {n%self.cam.fc} ")
             if n % self.vid_stride == 0:
                 if success:
-                    self.sem.acquire()
                     self.imgs[i], self.fps[i] = self.cam.capture()
-                    send_frame_tcp(self.sock_tcp, self.imgs[i])
-                    self.sem.release()
                 else:
                     LOGGER.warning('WARNING ⚠️ Video stream unresponsive, please check your IP camera connection.')
                     self.imgs[i] = np.zeros_like(self.imgs[i])    
-            time.sleep(0.0)  # wait time
+            time.sleep(0.1)  # wait time
 
     def __iter__(self):
         print("iter")
@@ -546,37 +535,6 @@ def img2label_paths(img_paths):
     # Define label paths as a function of image paths
     sa, sb = f'{os.sep}images{os.sep}', f'{os.sep}labels{os.sep}'  # /images/, /labels/ substrings
     return [sb.join(x.rsplit(sa, 1)).rsplit('.', 1)[0] + '.txt' for x in img_paths]
-
-# add. Connect TCP (Mainserver)
-def tcp_connect():
-    sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    print("wait connect main server....")
-    sock_tcp.connect((MAIN_SERVER_IP, MAIN_SERVER_TCP_PORT))
-    print("TCP stream connect!")
-    return sock_tcp
-
-# add. Frame send (TCP) ... Thread
-def send_frame_tcp(sock_tcp, frame):
-    try:
-        d = frame.flatten()
-        s = d.tobytes()
-        sock_tcp.sendall(s)
-
-    except BrokenPipeError:
-        print("disconnect..")
-        print("Restart....")
-        sys.stdout.flush()
-        ...
-    except ConnectionResetError:
-        print("disconnect..")
-        print("Restart....")
-        sys.stdout.flush()
-        os.execl(sys.executable, sys.executable, *sys.argv)
-    except TimeoutError:
-        print("timeout")
-        print("Restart....")
-        sys.stdout.flush()
-        os.execl(sys.executable, sys.executable, *sys.argv)
 
 class LoadImagesAndLabels(Dataset):
     # YOLOv5 train_loader/val_loader, loads images and labels for training and validation
