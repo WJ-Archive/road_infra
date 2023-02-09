@@ -41,14 +41,18 @@ from trackers.multi_tracker_zoo import create_tracker
 #add lib
 import socket
 import json
+import threading
+from multiprocessing import Process, shared_memory, Lock
+from multiprocessing import cpu_count, current_process
 from collections import deque
 import time
-import threading
 #import cProfile
 #add function for Socket Comm to Main Server ############################################
 
 MAIN_SERVER_IP = "192.168.0.244"
 MAIN_SERVER_UDP_PORT = 3939
+MAIN_SERVER_TCP_PORT = 3838
+
 
 #im0 size = 1 x 384 x 640 x 3(BGR) -> Raw frame 
 #im size = 1 x 3 x 384 x 640 (BGR2RGB & letterbox) -> divide frame(RGB) for inference
@@ -171,7 +175,7 @@ def run(
     # Dataloader
     if webcam:
         show_vid = check_imshow()
-        dataset = Custom_LoadStreams(source, img_size=imgsz, stride=stride, auto=pt, vid_stride=vid_stride, cam_width=CAM_WIDTH, cam_height=CAM_HEIGHT, sem=sem)
+        dataset = Custom_LoadStreams(source, img_size=imgsz, stride=stride, auto=pt, vid_stride=vid_stride, cam_width=CAM_WIDTH, cam_height=CAM_HEIGHT)
         #dataset = LoadStreams(source, img_size=imgsz, stride=stride, auto=pt, vid_stride=vid_stride)
         nr_sources = len(dataset)
     else:
@@ -191,13 +195,13 @@ def run(
     
     # add. 
     detected_list = deque()
+
     
     # Run tracking
     #model.warmup(imgsz=(1 if pt else nr_sources, 3, *imgsz))  # warmup
     seen, windows, dt = 0, [], (Profile(), Profile(), Profile(), Profile())
     curr_frames, prev_frames = [None] * nr_sources, [None] * nr_sources
     for frame_idx, (path, im, im0s, vid_cap, s) in enumerate(dataset):
-        sem.acquire()
         start_time = time.time()
         #print(f"im size : {len(im)}x{len(im[0])}x{len(im[0][0])}x{len(im[0][0][0])}")
         #print(f"im type : {type(im)}")
@@ -211,6 +215,7 @@ def run(
         if len(im.shape) == 3:
             im = im[None]  # expand for batch dim
 
+        #?????????????????
         # Inference
         #with dt[1]:
         visualize = increment_path(save_dir / Path(path[0]).stem, mkdir=True) if visualize else False
@@ -219,12 +224,16 @@ def run(
         else:
             pred = model(im, augment=augment, visualize=visualize)
 
+        
+
         # Apply NMS
         #with dt[2]:
         if is_seg:
             pred = non_max_suppression(pred, conf_thres, iou_thres, classes, agnostic_nms, max_det=max_det, nm=32)
         else:
             pred = non_max_suppression(pred, conf_thres, iou_thres, classes, agnostic_nms, max_det=max_det)
+
+    
 
         # Process detections
         for i, det in enumerate(pred):  # detections per image
@@ -339,6 +348,11 @@ def run(
             # Stream results
             im0 = annotator.result()
  
+            # add. Send frame (Thread)
+            if(len(thread_list) == 0):
+                ft = threading.Thread(target=send_frame_tcp, args=(im0,))
+                thread_list.append(ft)
+                ft.start()
             if show_vid:
                 if platform.system() == 'Linux' and p not in windows:
                     windows.append(p)
@@ -373,7 +387,6 @@ def run(
         # Print total time (preprocessing + inference + NMS + tracking)
         #LOGGER.info(f"{s}{'' if len(det) else '(no detections), '}{sum([dt.dt for dt in dt if hasattr(dt, 'dt')]) * 1E3:.1f}ms")
         print("total time : ",time.time() - start_time)
-        sem.release()
     # Print results
     t = tuple(x.t / seen * 1E3 for x in dt)  # speeds per image
     LOGGER.info(f'Speed: %.1fms pre-process, %.1fms inference, %.1fms NMS, %.1fms {tracking_method} update per image at shape {(1, 3, *imgsz)}' % t)
@@ -426,6 +439,35 @@ def parse_opt():
     print_args(vars(opt))
     return opt
 
+# add. Connect TCP (Mainserver)
+def tcp_connect():
+    sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    print("wait connect main server....")
+    sock_tcp.connect((MAIN_SERVER_IP, MAIN_SERVER_TCP_PORT))
+    print("TCP stream connect!")
+    return sock_tcp
+
+# add. Frame send (TCP) ... Thread
+def send_frame_tcp(frame):
+    global thread_list
+    try:
+        sem.acquire()
+        d = frame.flatten()
+        #s = d.tostring()
+        s = d.tobytes()
+        print(len(s))
+        sock_tcp.sendall(s)
+        thread_list = []
+        sem.release()
+        sys.exit(0)
+    except BrokenPipeError:
+        ...
+    except ConnectionResetError:
+        print("연결끊김!")
+        print("Restart....")
+        sys.stdout.flush()
+        os.execl(sys.executable, sys.executable, *sys.argv)
+
 # add. Connect UDP
 def udp_connect():
     sock_udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -449,5 +491,7 @@ if __name__ == "__main__":
     sem = threading.Semaphore(1)
     # add. UDP Connect
     sock_udp = udp_connect()
+    # add. TCP Connect
+    sock_tcp = tcp_connect()
     opt = parse_opt()
     main(opt)
