@@ -1,12 +1,11 @@
 #############################################################################
 
-# TODO : ORM 지원가능 패키지로 변경, 순서도, configuration , 정보중의적ㅍ표현, 데이터플로우다이어그램, 전체프로그램 동작, 데이터명세서 + DB에들어있는 데이터 
+# TODO : ORM 지원가능 패키지로 변경, 순서도, configuration , 정보중의적 표현, 데이터플로우다이어그램, 전체프로그램 동작, 데이터명세서 + DB에들어있는 데이터 
 
 import pymysql
 import re
 import time, datetime
 #from db import configuration
-
 #Connect DB, DB Handler : db_conn, curs
 class DB_Handler:
     def __init__(self):
@@ -73,11 +72,20 @@ class DB_Handler:
             ...#print("NOTHING")
             return '1'
 
+    def select_last_id_pthole(self): 
+        sql = "select id from pthole_tb ORDER BY id DESC LIMIT 1"
+        self.curs.execute(sql)
+        last_seq = self.curs.fetchone()  
+        if(last_seq != None):
+            return last_seq[0]
+        else:
+            return '0'
+
 
     #############################################################################
     #선택한 센서값(JSON)의 마지막값 return 
     def select_gnss_seq_tb(self, data):
-        sql = "SELECT "+data+" FROM gnss_tb ORDER BY seq DESC LIMIT 1"
+        sql = "SELECT "+data+" FROM gnss_tb ORDER BY id DESC LIMIT 1"
         self.curs.execute(sql)
         row = self.curs.fetchone()
         if row is not None:
@@ -87,7 +95,7 @@ class DB_Handler:
             exit()
 
     def select_env_seq_tb(self, data):
-        sql = "SELECT "+data+" FROM env_tb ORDER BY seq DESC LIMIT 1"
+        sql = "SELECT "+data+" FROM env_tb ORDER BY id DESC LIMIT 1"
         self.curs.execute(sql)
         row = self.curs.fetchone()
         if row is not None:
@@ -97,7 +105,7 @@ class DB_Handler:
             exit()
 
     def select_imu_seq_tb(self, data):
-        sql = "SELECT "+data+" FROM imu_tb ORDER BY seq DESC LIMIT 1"
+        sql = "SELECT "+data+" FROM imu_tb ORDER BY id DESC LIMIT 1"
         self.curs.execute(sql)
         row = self.curs.fetchone()
         if row is not None:
@@ -115,8 +123,6 @@ class DB_Handler:
         else:
             print("no data")
             exit()
-
-
 
     #### INSERT
     #시간값 여기서 통합하는걸로 변경
@@ -145,7 +151,6 @@ class DB_Handler:
         print("imu_tb Insert Success : ",data)
 
     def insert_det_tb(self, data, gnss_id):
-        print(data)
         re_txt = re.sub('[-:]','',str(time.time())).replace(' ','_')
         sql = "INSERT INTO det_tb (sign_name, sign_class, recog, x, y, w, h, frame,  img_path, time_stamp, gnss_id)"\
             "VALUES('" + data[1] + "','" + data[2] + "','" + data[3] + "','" + data[4] + "','" \
@@ -160,16 +165,7 @@ class DB_Handler:
         sql = "INSERT INTO road_tb (recv_num, rd_temp, rd_dewp, rd_hum, waterfilm_h, rd_status, rd_ice_per,  rd_fric, rd_status_str, battV, ptemp, time_stamp, gnss_id)"\
             "VALUES('" + data[1] + "','" + data[3] + "','" + data[4] + "','" + data[5] +"','" \
                 + data[6] + "','" + data[7]+"','" + data[8]+"','" + data[9] + "','" + data[10] \
-                    + "','" + data[11] + "','" + data[12] + "','" + "'now()'" + "','"  + gnss_id +"')"
-        self.curs.execute(sql)
-        self.db_conn.commit()
-        print("road_tb Insert Success : ",data)
-    
-    def insert_road_tb(self, data, gnss_id):
-        sql = "INSERT INTO road_tb (msg_uuid, obj_id, obj_type, obj_image, obj_time, size)"\
-            "VALUES('" + data[1] + "','" + data[3] + "','" + data[4] + "','" + data[5] +"','" \
-                + data[6] + "','" + data[7]+"','" + data[8]+"','" + data[9] + "','" + data[10] \
-                    + "','" + data[11] + "','" + data[12] + "','" + "'now()'" + "','"  + gnss_id +"')"
+                    + "','" + data[11] + "','" + data[12] + "',now(),'" + gnss_id +"')"
         self.curs.execute(sql)
         self.db_conn.commit()
         print("road_tb Insert Success : ",data)
@@ -177,22 +173,23 @@ class DB_Handler:
     def insert_pthole_tb(self, data, gnss_id):
         sql = "INSERT INTO pthole_tb (msg_uuid, obj_id, obj_type, obj_image, obj_time, pt_h_max, time_stamp, gnss_id)"\
             "VALUES('" + data[0] + "','" + data[1] + "','" + data[2] + "','" + data[3] +"','" \
-                + data[4] + "','" + data[5]+"','"  + "'now()'" + "','"  + gnss_id +"')"
+                + data[4] + "','" + data[5] + "',now(),'" + gnss_id +"')"
+        
         self.curs.execute(sql)
         self.db_conn.commit()
         print("pthole_tb Insert Success : ",data)
 
     def insert_pt_frame_tb(self, data, pth_id):
+
         sql = "INSERT INTO pt_frame_tb (pt_x, pt_w, pth_h_avg, pthole_id)"\
-            "VALUES('" + data[0] + "','" + data[1] + "','" + data[2] + "','" + data[3] +"','" \
-                + data[4] + "','" + data[5]+"','"  + "'now()'" + "','"  + pth_id +"')"
+            "VALUES('" + data[0] + "','" + data[1] + "','" + data[2] + "','" + pth_id +"')"
+        print(sql)
         self.curs.execute(sql)
         self.db_conn.commit()
         print("pthole_tb Insert Success : ",data)
 
 
     ### 검색 ###
-
     def search(self, lat_q="", lon_q=""):
         sql = \
         "SELECT \
