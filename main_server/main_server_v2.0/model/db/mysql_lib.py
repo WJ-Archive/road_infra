@@ -21,7 +21,7 @@ class DB_Handler:
         #database connect
         self.db_conn = pymysql.connect(
             user = 'root',
-            passwd = 'keti1234',
+            passwd = '****',
             host = '127.0.0.1',
             db = 'dbdb',
             charset = 'utf8'
