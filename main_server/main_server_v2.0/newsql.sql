@@ -1,6 +1,5 @@
 CREATE DATABASE dbdb default CHARACTER SET UTF8;
 SHOW DATABASES;
-create user 'keti'@'%' identified by '1234';
 select * from user;
 grant all privileges on *.* to 'keti'@'%';
 use dbdb;
