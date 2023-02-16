@@ -11,7 +11,18 @@ from model.lineprf import lpf
 from model.rdsf import rdsf
 from pymysql import IntegrityError
 
+import time
+
 #import cv2
+def mmfps(speed, fps=900): #mm
+    print("mmfps",)
+    return speed * (1000000/3600) / fps
+    ...
+
+def pthxy():
+
+    ...
+
 
 class Data_Model():
     def __init__(self):
@@ -19,8 +30,11 @@ class Data_Model():
 
     def json_parser(self, data):
         json2dict = literal_eval(data)
+        print(type(json2dict))
+        print(json2dict)
         li = json2dict.values()
         return list(map(str, li))
+
     
     def t_sen(self, sem):
         dbh = mysql_lib.DB_Handler()
@@ -104,53 +118,54 @@ class Data_Model():
             sem.acquire()
             lpf_data = lpf.get_lineprofiler_data()
             #속도값은 GNSS 센서의 NMEA데이터중 $GNVPS 에서 파싱한 값 사용
-            speed = dbh.select_gnss_seq_tb("speed")
-            print("현재 속도 : ",speed)
+            speed = dbh.select_gnss_seq_tb("speed")[0]
+            print("gnss_현재 속도(lpf 계산용) : ",speed)
+            print("gnss_현재 속도(lpf 계산용) : ",type(speed))
 
             if(lpf_data != None):
-                print(lpf_data)
-                #TODO : 현재 속도값을 이용해서 포트홀 높이 측정 알고리즘 짜기
-                #TODO : 라인프로파일 frame_info 에서 들어오는 데이터 합쳐서 포트홀의 전체 크기 구하기 (pothole_tb, pt_frame_tb)
-                #데이터 예시
-                '''
-                {
-                    "msg_uuid" : "12345678-1234-5678-1234-567812345678",
-                    "obj_id" : 1794,
-                    "obj_type" : 20,
-                    "obj_image" : "0000000000142.png",
-                    "obj_time" : "2022-06-20 09:25:59",
-                    "size" : {
-                        "h_max" : -63.84,
-                        "frame_info" : [
-                            {
-                                "x" : 20.16,
-                                "w" : 195.42,
-                                "h_avg" : -16.33
-                            },
-                            {
-                                "x" : 5.1,
-                                "w" : 305.42,
-                                "h_avg" : -59.99
-                            },
-                            {
-                                "x" : 14.61,
-                                "w" : 261.42,
-                                "h_avg" : -37.41
-                            },
-                            {
-                                "x" : 35.64,
-                                "w" : 53.66,
-                                "h_avg" : -8.1
-                            }
-                        ]
-                    }
-                }
-                '''
-                #view 에서 출력하는 모델 없으니 바로 DB로 전달
-                #데이터 파싱은 DB SQL 문에서 수행         
-                #dbh.insert_gnss_tb(lpf_data) 
-            sem.release()
+                
+                lpf_data_parse = self.json_parser(lpf_data)
+                pthole_data = literal_eval(lpf_data_parse[5])
+                pthole_hmax = abs(pthole_data['h_max'])
+                pthole_info = pthole_data['frame_info']
+                
+                lpf_d = list(map(str,lpf_data_parse[0:5]))+[str(pthole_hmax)]                
+                dbh.insert_pthole_tb(lpf_d, dbh.select_last_id_gnss())
 
+                #TODO :pthole info 데이터를 이용해 pt_frame_tb에 들어갈 값 구하기
+                #1) 현재 속도값을 이용해서 포트홀 높이 측정 알고리즘 짜기 
+                #2) 라인프로파일 frame_info 에서 들어오는 데이터 합쳐서 포트홀의 전체 크기 구하기 (pothole_tb, pt_frame_tb)
+                #view 에서 출력하는 모델 없으니 바로 DB로 전달         
+                #단위 : mm
+                #x : 화면 비율 (포트홀 첫번째 지점)
+                #w : 측정된 포트홀 길이
+                #h : 깊이 평균. 
+                #속도로 높이 구하는법 : 70km/h 라고할때 프레임당 거리.
+                #카메라 fps
+                #1) 단위 환산 mm x 1000 x 1000 (km) / sec x 60 x 60 (h)
+                #카메라 FPS : 900프레임 918
+                # n km x (1000000/3600) / fps = 간격(mm)
+
+                last_lpf_id = dbh.select_last_id_pthole()
+
+                p_res = 0
+                line_gap = mmfps(speed)
+
+                for d in pthole_info:
+                    print(d)
+                    dbh.insert_pt_frame_tb(list(map(str,[d['x'], d['w'], d['h_avg']])), str(last_lpf_id))
+                    p_res += d['w']
+                    ...
+               
+                res = p_res * line_gap * pthole_hmax
+                print("res",res)
+
+                #print("hmax::::",pthole_hmax)
+                #print("info::::",pthole_info[0])
+                #print("info::::",type(pthole_info[0]))
+
+
+            sem.release()
 
     #Process 1
     def run(self): 
